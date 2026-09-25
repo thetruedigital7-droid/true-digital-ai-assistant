@@ -1,0 +1,491 @@
+{
+  "name": "Lead Capture - Website Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "name",
+              "name": "name",
+              "value": "={{ $json.body.name }}",
+              "type": "string"
+            },
+            {
+              "id": "contact_method",
+              "name": "contact_method",
+              "value": "={{ $json.body.contact_method }}",
+              "type": "string"
+            },
+            {
+              "id": "contact_value",
+              "name": "contact_value",
+              "value": "={{ $json.body.contact_value }}",
+              "type": "string"
+            },
+            {
+              "id": "segment",
+              "name": "segment",
+              "value": "={{ $json.body.segment || 'unknown' }}",
+              "type": "string"
+            },
+            {
+              "id": "service_interest",
+              "name": "service_interest",
+              "value": "={{ $json.body.service_interest }}",
+              "type": "string"
+            },
+            {
+              "id": "qualification_data",
+              "name": "qualification_data",
+              "value": "={{ $json.body.qualification_data }}",
+              "type": "object"
+            },
+            {
+              "id": "conversation_id",
+              "name": "conversation_id",
+              "value": "={{ $json.body.conversation_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Validate & Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "leads",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $json.name }}"
+            },
+            {
+              "fieldId": "contact_method",
+              "fieldValue": "={{ $json.contact_method }}"
+            },
+            {
+              "fieldId": "contact_value",
+              "fieldValue": "={{ $json.contact_value }}"
+            },
+            {
+              "fieldId": "segment",
+              "fieldValue": "={{ $json.segment }}"
+            },
+            {
+              "fieldId": "service_interest",
+              "fieldValue": "={{ $json.service_interest }}"
+            },
+            {
+              "fieldId": "qualification_data",
+              "fieldValue": "={{ $json.qualification_data }}"
+            },
+            {
+              "fieldId": "conversation_id",
+              "fieldValue": "={{ $json.conversation_id }}"
+            }
+          ]
+        }
+      },
+      "name": "Save Lead (Supabase)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "is-email",
+              "leftValue": "={{ $json.contact_method }}",
+              "rightValue": "email",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $json.contact_method === 'email' ? $json.contact_value : '' }}",
+        "additionalFields": {
+          "firstName": "={{ $json.name }}",
+          "phoneNumber": "={{ $json.contact_method !== 'email' ? $json.contact_value : '' }}"
+        },
+        "options": {}
+      },
+      "name": "Create or update a contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        -96
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "name": "HubSpot private app token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotAppToken",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"properties\": {\n    \"phone\": \"{{ $json.contact_value }}\",\n    \"firstname\": \"{{ $json.name }}\"\n  }\n}",
+        "options": {}
+      },
+      "name": "Create phone-only contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        96
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "name": "HubSpot private app token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "deal",
+        "stage": "YOUR_HUBSPOT_DEAL_STAGE_ID",
+        "additionalFields": {
+          "associatedVids": "={{ $json.vid }}",
+          "dealName": "={{ $('If').item.json.name }} — {{ $('If').item.json.service_interest }}",
+          "pipeline": "default"
+        }
+      },
+      "name": "Create a deal",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        -96
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "name": "HubSpot private app token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "deal",
+        "stage": "YOUR_HUBSPOT_DEAL_STAGE_ID",
+        "additionalFields": {
+          "associatedVids": "={{ $json.id }}",
+          "dealName": "={{ $('If').item.json.name }} — {{ $('If').item.json.service_interest }}",
+          "pipeline": "default"
+        }
+      },
+      "name": "Create a deal (phone)",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        96
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "name": "HubSpot private app token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "is-local",
+              "leftValue": "={{ $('Validate & Normalize').item.json.segment }}",
+              "rightValue": "local",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Segment Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1568,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "lead-alerts"
+        },
+        "text": "=🔥 *New Local Lead* — {{ $('Validate & Normalize').item.json.name }}\nService: {{ $('Validate & Normalize').item.json.service_interest }}\nContact: {{ $('Validate & Normalize').item.json.contact_method }} — {{ $('Validate & Normalize').item.json.contact_value }}\nSegment: {{ $('Validate & Normalize').item.json.segment }}",
+        "otherOptions": {}
+      },
+      "name": "Slack alert (local)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1792,
+        0
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "emailType": "text",
+        "sendTo": "team@example.com",
+        "subject": "=🌍 New International Lead — {{ $('Validate & Normalize').item.json.name }}",
+        "message": "=New lead details:\n\nName: {{ $('Validate & Normalize').item.json.name }}\nService interest: {{ $('Validate & Normalize').item.json.service_interest }}\nContact method: {{ $('Validate & Normalize').item.json.contact_method }}\nContact value: {{ $('Validate & Normalize').item.json.contact_value }}\nSegment: {{ $('Validate & Normalize').item.json.segment }}\n\nThis lead has already been saved to Supabase and created in HubSpot.",
+        "options": {}
+      },
+      "name": "Email alert (international)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        96
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 04 — Lead capture (shared by chat + voice)\nPOST lead JSON → Supabase `leads` → responds with the row (so the caller gets an `id`) → HubSpot contact + deal → Slack (local) or email (international).\n\nThe webhook responds *before* the CRM steps, so a slow HubSpot call never makes the assistant wait.",
+        "color": 5,
+        "width": 440,
+        "height": 260
+      },
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -320
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate & Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Normalize": {
+      "main": [
+        [
+          {
+            "node": "Save Lead (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Lead (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or update a contact": {
+      "main": [
+        [
+          {
+            "node": "Create a deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create phone-only contact": {
+      "main": [
+        [
+          {
+            "node": "Create a deal (phone)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a deal": {
+      "main": [
+        [
+          {
+            "node": "Segment Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a deal (phone)": {
+      "main": [
+        [
+          {
+            "node": "Segment Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Create or update a contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create phone-only contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Segment Router": {
+      "main": [
+        [
+          {
+            "node": "Slack alert (local)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email alert (international)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {}
+}

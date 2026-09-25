@@ -1,0 +1,171 @@
+{
+  "name": "Voice Tool - Knowledge Base Search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-kb-search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Voice KB Search",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "q",
+              "name": "query",
+              "type": "string",
+              "value": "={{ String($json.body?.query ?? $json.query ?? \"\").slice(0, 300) || \"True Digital services\" }}"
+            }
+          ]
+        }
+      },
+      "name": "Get Query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kb_chunks"
+        },
+        "prompt": "={{ $json.query }}",
+        "topK": 4,
+        "includeDocumentMetadata": true,
+        "options": {
+          "queryName": "match_kb_chunks"
+        }
+      },
+      "name": "Search Knowledge Base",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "name": "Gemini Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        440,
+        520
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { const hits = $input.all().map(i => i.json).filter(j => j.document && j.document.pageContent && (j.score || 0) >= 0.5); if (!hits.length) return { found: false, results: 'No matching information in the True Digital knowledge base. Say you do not have that detail and offer a call back from the team.' }; return { found: true, results: hits.map(h => h.document.pageContent.replace(/\\r/g, '').trim()).join('\\n\\n---\\n\\n') }; })() }}",
+        "options": {}
+      },
+      "name": "Return Results",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        680,
+        300
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "content": "## 02 — Voice tool: knowledge base search\nCalled by the ElevenLabs agent as a server tool.\nPOST {\"query\": \"...\"} → top 4 chunks with similarity ≥ 0.5, joined as plain text.\nSame Supabase KB as the chat.\n\nAdd header auth to the webhook before going live.",
+        "color": 5,
+        "width": 440,
+        "height": 240
+      },
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "Voice KB Search": {
+      "main": [
+        [
+          {
+            "node": "Get Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Query": {
+      "main": [
+        [
+          {
+            "node": "Search Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Return Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Search Knowledge Base",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {}
+}

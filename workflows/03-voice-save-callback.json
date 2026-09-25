@@ -1,0 +1,143 @@
+{
+  "name": "Voice Tool - Save Callback Request",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-callback",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Voice Callback Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body || $input.first().json;\nconst s = v => String(v == null ? '' : v).trim();\nconst contact = s(b.phone || b.contact_value || b.email);\nconst isEmail = /@/.test(contact);\nlet digits = contact.replace(/[^0-9+]/g, '');\nconst location = s(b.location);\nconst intl = /^\\+/.test(digits) && !/^\\+91/.test(digits);\nreturn [{ json: {\n  name: s(b.name) || 'Voice visitor',\n  contact_method: isEmail ? 'email' : 'phone',\n  contact_value: isEmail ? contact : digits,\n  segment: s(b.segment) || (intl ? 'international' : 'local'),\n  service_interest: s(b.service_interest) || 'General enquiry',\n  qualification_data: {\n    request: 'call_back',\n    channel: 'voice',\n    best_time_to_call: s(b.best_time_to_call) || 'anytime',\n    business_type: s(b.business_type),\n    location,\n    goal: s(b.goal),\n    notes: s(b.notes)\n  },\n  conversation_id: s(b.conversation_id) || ('voice-' + Date.now())\n} }];"
+      },
+      "name": "Build Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_N8N_HOST/webhook/lead-capture",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "name": "Send to Lead Capture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {},
+        "responseBody": "={{ { success: !!$json.id, lead_id: $json.id || null, message: $json.id ? 'Call-back request saved. The team will call ' + $('Build Lead').first().json.name + ' at ' + $('Build Lead').first().json.qualification_data.best_time_to_call + '.' : 'Could not save. Give the visitor [BUSINESS_WHATSAPP].' } }}"
+      },
+      "name": "Return Saved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {},
+        "responseBody": "={{ { success: false, message: 'Could not save the request. Apologise and give the visitor [BUSINESS_WHATSAPP].' } }}"
+      },
+      "name": "Return Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 03 — Voice tool: save call-back request\nElevenLabs agent POSTs flat fields {name, phone, best_time_to_call, service_interest, business_type, location, notes}.\nReshaped to the chat's lead schema → 04 Lead Capture.\nError branch returns success:false so the agent reads out the phone number instead of claiming success.",
+        "color": 5,
+        "width": 440,
+        "height": 240
+      },
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        128
+      ]
+    }
+  ],
+  "connections": {
+    "Voice Callback Request": {
+      "main": [
+        [
+          {
+            "node": "Build Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Lead": {
+      "main": [
+        [
+          {
+            "node": "Send to Lead Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Lead Capture": {
+      "main": [
+        [
+          {
+            "node": "Return Saved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {}
+}

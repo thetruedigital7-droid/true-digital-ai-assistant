@@ -1,0 +1,7 @@
+.env
+*.env
+.DS_Store
+Thumbs.db
+# raw n8n exports before sanitizing: keep them out of git
+raw/
+*.raw.json

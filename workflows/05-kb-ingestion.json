@@ -1,0 +1,379 @@
+{
+  "name": "Knowledge Base Ingestion - Website Assistant",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Rebuild Knowledge Base",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "kb_chunks",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "gt",
+              "keyValue": "0"
+            }
+          ]
+        }
+      },
+      "name": "Clear Old Chunks",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "kb_documents",
+        "returnAll": true,
+        "orderBy": "slug",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_active",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "name": "Get Active Documents",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        480,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kb_chunks"
+        },
+        "embeddingBatchSize": 50,
+        "options": {
+          "queryName": "match_kb_chunks"
+        }
+      },
+      "name": "Embed & Store Chunks",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "name": "Gemini Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        640,
+        560
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.title }}: {{ $json.content.trim() }}",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "document_id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "name": "slug",
+                "value": "={{ $json.slug }}"
+              },
+              {
+                "name": "title",
+                "value": "={{ $json.title }}"
+              },
+              {
+                "name": "category",
+                "value": "={{ $json.category }}"
+              },
+              {
+                "name": "version",
+                "value": "={{ $json.version }}"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Document + Metadata",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 1200,
+        "chunkOverlap": 150,
+        "options": {}
+      },
+      "name": "Split into Chunks",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        880,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "docs",
+              "name": "documents",
+              "value": "={{ $('Get Active Documents').all().length }}",
+              "type": "number"
+            },
+            {
+              "id": "chunks",
+              "name": "chunks_stored",
+              "value": "={{ $input.all().length }}",
+              "type": "number"
+            },
+            {
+              "id": "at",
+              "name": "rebuilt_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "q",
+              "name": "test_question",
+              "value": "Do you do SEO for clinics?",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Ingestion Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1008,
+        304
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "kb_chunks"
+        },
+        "prompt": "={{ $json.test_question }}",
+        "topK": 3,
+        "options": {
+          "queryName": "match_kb_chunks"
+        }
+      },
+      "name": "Test Retrieval",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1248,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "name": "Gemini Embeddings (query)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        560
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 05 — Knowledge base ingestion\nRun manually after editing `kb_documents`.\n\n1. Delete all rows in `kb_chunks`\n2. Load active `kb_documents`\n3. Prefix each doc with its title, split (1,200 chars / 150 overlap), embed with `gemini-embedding-001`, store with metadata\n4. Run one test retrieval as a smoke check",
+        "color": 5,
+        "width": 440,
+        "height": 300
+      },
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        128
+      ]
+    }
+  ],
+  "connections": {
+    "Rebuild Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Clear Old Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Old Chunks": {
+      "main": [
+        [
+          {
+            "node": "Get Active Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Documents": {
+      "main": [
+        [
+          {
+            "node": "Embed & Store Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed & Store Chunks": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingestion Summary": {
+      "main": [
+        [
+          {
+            "node": "Test Retrieval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Embed & Store Chunks",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document + Metadata": {
+      "ai_document": [
+        [
+          {
+            "node": "Embed & Store Chunks",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split into Chunks": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document + Metadata",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Embeddings (query)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Test Retrieval",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {}
+}

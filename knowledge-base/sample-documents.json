@@ -1,0 +1,20 @@
+[
+  {
+    "slug": "service-seo",
+    "title": "SEO service",
+    "category": "service",
+    "content": "Example content. Describe what the SEO service includes (technical audit, on-page fixes, Google Business Profile, local citations, monthly reporting), who it suits, and how long it usually takes to see movement. Keep one service per document so retrieval returns a focused chunk."
+  },
+  {
+    "slug": "pricing-policy",
+    "title": "How pricing works",
+    "category": "pricing-policy",
+    "content": "Example content. We do not publish prices. Every project gets one fixed price in writing before work starts. Price depends on scope: number of pages, integrations, content, and ongoing support. The free consultation is a phone call back."
+  },
+  {
+    "slug": "contact-hours",
+    "title": "Contact details and hours",
+    "category": "contact",
+    "content": "Example content. Office hours: Monday to Saturday, 10 AM to 7 PM IST. Call or WhatsApp: [BUSINESS_WHATSAPP]. Call: [BUSINESS_PHONE]. Call backs usually happen the same day."
+  }
+]

@@ -18,7 +18,7 @@ It's one system with two ways in. Built entirely in n8n, with Supabase pgvector 
 
 | Answers from the knowledge base | Won't quote a price | Books a call back |
 |---|---|---|
-| ![Chat answering a service question from the knowledge base](docs/screenshots/chat-answer.png) | ![Chat declining to give a price and offering a call back](docs/screenshots/chat-guardrail.png) | ![Chat confirming a call-back request](docs/screenshots/chat-callback.png) |
+| ![Chat answering a service question from the knowledge base](Docs/screenshots/chat-answer.png) | ![Chat declining to give a price and offering a call back](Docs/screenshots/chat-guardrail.png) | ![Chat confirming a call-back request](Docs/screenshots/chat-callback.png) |
 
 ---
 

@@ -6,8 +6,6 @@ It's one system with two ways in. Built entirely in n8n, with Supabase pgvector 
 
 **Live demo:** [thetruedigital.in](https://thetruedigital.in)
 
-![Demo: chat, then voice](docs/screenshots/demo.gif)
-
 ---
 
 ## What it does
@@ -18,10 +16,9 @@ It's one system with two ways in. Built entirely in n8n, with Supabase pgvector 
 - **Captures a call-back request** (name, number, best time) and only confirms it once the lead is actually saved. The lead lands in Supabase and HubSpot (contact + deal), and the team gets a Slack alert for local leads or an email for international ones.
 - **Works the same by voice**: short spoken replies, reads phone numbers back in digit groups to confirm them, and ends the call politely.
 
-| Chat | Voice |
-|---|---|
-| ![Chat answering from the knowledge base](docs/screenshots/chat-answer.png) | ![Voice widget mid-conversation](docs/screenshots/voice-widget.png) |
-| ![Chat refusing to quote a price](docs/screenshots/chat-guardrail.png) | ![Lead alert created by a call back](docs/screenshots/lead-alert.png) |
+| Answers from the knowledge base | Won't quote a price | Books a call back |
+|---|---|---|
+| ![Chat answering a service question from the knowledge base](docs/screenshots/chat-answer.png) | ![Chat declining to give a price and offering a call back](docs/screenshots/chat-guardrail.png) | ![Chat confirming a call-back request](docs/screenshots/chat-callback.png) |
 
 ---
 
